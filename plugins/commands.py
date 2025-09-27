@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 BATCH_FILES = {}
 join_db = JoinReqs
 
-# Temporary URL API Configuration
-TEMP_API_URL = "https://defensive-arabelle-uggjhkbkjgtffgjvhi-ba245ed6.koyeb.app"  # Your Koyeb app URL
+#  URL API Configuration 
+TEMP_API_URL = "https://defensive-arabelle-uggjhkbkjgtffgjvhi-ba245ed6.koyeb.app"
 
 async def generate_temp_url(original_file_id: str) -> str:
     """Generate temporary URL via API"""
@@ -30,7 +30,6 @@ async def generate_temp_url(original_file_id: str) -> str:
                     data = await response.json()
                     return data["temp_url"]
                 else:
-                    # Fallback to original file ID if API fails
                     return f"https://t.me/{temp.U_NAME}?start={original_file_id}"
     except Exception as e:
         logger.error(f"Error generating temp URL: {e}")
@@ -57,15 +56,14 @@ async def start(client, message):
     except:
         pass
     
-    # Handle temporary file IDs
+    # ✅ NEW CODE: Handle temporary file IDs - YAHAN ADD KAREIN
     if len(message.command) == 2:
         start_param = message.command[1]
         
-        # temporary ID (16+ characters)
+        # Check if it's a temporary ID (16+ characters, typically URL-safe)
         if len(start_param) >= 16 and '_' not in start_param and '-' not in start_param:
             original_id = await get_original_file_id(start_param)
             if original_id:
-                # Send the file using original ID
                 try:
                     files_ = await get_file_details(original_id)
                     if files_:
@@ -102,6 +100,7 @@ async def start(client, message):
                     logger.error(f"Error sending file from temp ID: {e}")
                     await message.reply_text("❌ This link has expired or is invalid.")
                     return
+                    
     if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         buttons = [[
             InlineKeyboardButton('⤬ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ⤬', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
