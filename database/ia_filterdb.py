@@ -22,10 +22,10 @@ sec_col = sec_db[COLLECTION_NAME]
 
 async def save_file(media):
     """Save file in the database."""
-    
+
     file_id = unpack_new_file_id(media.file_id)
     file_name = clean_file_name(media.file_name)
-    
+
     file = {
         'file_id': file_id,
         'file_name': file_name,
@@ -59,10 +59,10 @@ def clean_file_name(file_name):
     """Clean and format the file name."""
     file_name = re.sub(r"(_|\-|\.|\+)", " ", str(file_name)) 
     unwanted_chars = ['[', ']', '(', ')', '{', '}']
-    
+
     for char in unwanted_chars:
         file_name = file_name.replace(char, '')
-        
+
     return ' '.join(filter(lambda x: not x.startswith('@') and not x.startswith('http') and not x.startswith('www.') and not x.startswith('t.me'), file_name.split()))
 
 def is_file_already_saved(file_id, file_name):
@@ -74,12 +74,12 @@ def is_file_already_saved(file_id, file_name):
         if collection.find_one(found1) or collection.find_one(found):
             print(f"{file_name} is already saved.")
             return True
-            
+
     return False
 
 async def get_search_results(chat_id, query, file_type=None, max_results=10, offset=0, filter=False):
     """For given query return (results, next_offset)"""
-    
+
     query = query.strip()
     if not query:
         raw_pattern = '.'
@@ -96,14 +96,14 @@ async def get_search_results(chat_id, query, file_type=None, max_results=10, off
     if MULTIPLE_DATABASE:
         cursor1 = col.find(filter).sort('$natural', -1).skip(offset).limit(max_results)
         cursor2 = sec_col.find(filter).sort('$natural', -1).skip(offset).limit(max_results)
-        
+
         for file in cursor1:
             files.append(file)
         for file in cursor2:
             files.append(file)
     else:
         cursor = col.find(filter).sort('$natural', -1).skip(offset).limit(max_results)
-        
+
         for file in cursor:
             files.append(file)
 
@@ -115,14 +115,14 @@ async def get_search_results(chat_id, query, file_type=None, max_results=10, off
 async def get_bad_files(query, file_type=None, use_filter=False):
     """For given query return (results, next_offset)"""
     query = query.strip()
-    
+
     if not query:
         raw_pattern = '.'
     elif ' ' not in query:
         raw_pattern = rf'(\b|[.+-_]){query}(\b|[.+-_])'
     else:
         raw_pattern = query.replace(' ', r'.*[s.+-_]')
-    
+
     try:
         regex = re.compile(raw_pattern, flags=re.IGNORECASE)
     except re.error:
@@ -159,7 +159,7 @@ def encode_file_id(s: bytes) -> str:
                 n = 0
             r += bytes([i])
     return base64.urlsafe_b64encode(r).decode().rstrip("=")
-    
+
 def unpack_new_file_id(new_file_id):
     """Return file_id"""
     decoded = FileId.decode(new_file_id)
@@ -173,22 +173,3 @@ def unpack_new_file_id(new_file_id):
         )
     )
     return file_id
-    
-async def get_file_by_video_id(video_id: str):
-    """
-    Search database for a file whose caption contains the unique video_id.
-    Example: caption = "video+54662", video_id = "54662"
-    """
-    try:
-        regex = re.compile(rf"\b{re.escape(video_id)}\b", flags=re.IGNORECASE)
-    except:
-        regex = video_id
-
-    filter_criteria = {"caption": regex}
-
-    if MULTIPLE_DATABASE:
-        file = col.find_one(filter_criteria) or sec_col.find_one(filter_criteria)
-    else:
-        file = col.find_one(filter_criteria)
-
-    return file
