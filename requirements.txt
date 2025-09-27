@@ -1,6 +1,9 @@
 pyrofork==2.3.45
 tgcrypto 
 requests 
+fastapi
+uvicorn
+python-multipart
 bs4 
 shortzy 
 pytz 
