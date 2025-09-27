@@ -1,8 +1,8 @@
-# Don't Remove Credit @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot @Tech_VJ
-# Ask Doubt on telegram @KingVJ01
+# Use a newer Python version with a supported Debian version
+FROM python:3.10.8-slim-bullseye
 
-FROM python:3.10.8-slim-buster
+# Or even better, use the latest Python 3.10 with latest Debian
+FROM python:3.10-slim
 
 RUN apt update && apt upgrade -y
 RUN apt install git -y
