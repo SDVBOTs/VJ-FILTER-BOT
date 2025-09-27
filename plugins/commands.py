@@ -112,7 +112,7 @@ async def start(client, message):
         reply_markup=reply_markup,
         parse_mode=enums.ParseMode.HTML
     )
-        return
+    return  # ← यह line 115 थी, अब ठीक है
     
     if AUTH_CHANNEL and not await is_subscribed(client, message):
         try:
@@ -124,6 +124,7 @@ async def start(client, message):
             print(e)
             await message.reply_text("Make sure Bot is admin in Forcesub channel")
             return
+        # ... बाकी code वही रहता है
         try:
             btn = [[InlineKeyboardButton("ʙᴀᴄᴋᴜᴘ ᴄʜᴀɴɴᴇʟ", url=invite_link.invite_link)]]
             if message.command[1] != "subscribe":
