@@ -174,3 +174,21 @@ def unpack_new_file_id(new_file_id):
     )
     return file_id
     
+async def get_file_by_video_id(video_id: str):
+    """
+    Search database for a file whose caption contains the unique video_id.
+    Example: caption = "video+54662", video_id = "54662"
+    """
+    try:
+        regex = re.compile(rf"\b{re.escape(video_id)}\b", flags=re.IGNORECASE)
+    except:
+        regex = video_id
+
+    filter_criteria = {"caption": regex}
+
+    if MULTIPLE_DATABASE:
+        file = col.find_one(filter_criteria) or sec_col.find_one(filter_criteria)
+    else:
+        file = col.find_one(filter_criteria)
+
+    return file
