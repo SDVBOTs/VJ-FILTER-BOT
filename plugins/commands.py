@@ -17,7 +17,7 @@ BATCH_FILES = {}
 join_db = JoinReqs
 
 #  URL API Configuration 
-TEMP_API_URL = "https://defensive-arabelle-uggjhkbkjgtffgjvhi-ba245ed6.koyeb.app"
+TEMP_API_URL = "https://persistent-candace-uggjhkbkjgtffgjvhi-9d0f0a10.koyeb.app/"
 
 async def generate_temp_url(original_file_id: str) -> str:
     """Generate temporary URL via API"""
