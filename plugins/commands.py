@@ -1,4 +1,4 @@
-import os, string, logging, random, asyncio, time, datetime, re, sys, json, base64
+import os, string, logging, random, asyncio, time, datetime, re, sys, json, base64, aiohttp 
 from Script import script
 from pyrogram import Client, filters, enums
 from pyrogram.errors import ChatAdminRequired, FloodWait
@@ -223,10 +223,6 @@ async def start(client, message):
                 parse_mode=enums.ParseMode.HTML
             )
             return 
-    import aiohttp  # upar imports me add karo
-
-...
-
     try:
         pre, file_id = data.split('_', 1)
     except:
