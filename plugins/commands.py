@@ -165,7 +165,9 @@ async def start(client, message):
             parse_mode=enums.ParseMode.HTML
         )
         return
+        
     data = message.command[1]
+    
     if data.split("-", 1)[0] == "VJ":
         user_id = int(data.split("-", 1)[1])
         vj = await referal_add_user(user_id, message.from_user.id)
@@ -179,7 +181,7 @@ async def start(client, message):
                 if seconds > 0:
                     expiry_time = datetime.datetime.now() + datetime.timedelta(seconds=seconds)
                     user_data = {"id": user_id, "expiry_time": expiry_time} 
-                    await db.update_user(user_data)  # Use the update_user method to update or insert user data
+                    await db.update_user(user_data)
                     await delete_all_referal_users(user_id)
                     await client.send_message(chat_id = user_id, text = "<b>You Have Successfully Completed Total Referal.\n\nYou Added In Premium For {}</b>".format(REFERAL_PREMEIUM_TIME))
                     return 
@@ -222,191 +224,194 @@ async def start(client, message):
                 reply_markup=reply_markup,
                 parse_mode=enums.ParseMode.HTML
             )
-            return 
-try:
-    pre, temp_id = data.split('_', 1)
-except:
-    temp_id = data
-    pre = ""
+            return
 
-# Fetch actual file_id from API using temp_id
-try:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f'https://file-id-wh4s.onrender.com/get?temp_id={temp_id}') as response:
-            if response.status == 200:
-                api_data = await response.json()
-                file_id = api_data.get("file_id")
-                if not file_id:
-                    await message.reply_text("<b>Invalid file ID received from API</b>")
-                    return
-            else:
-                await message.reply_text("<b>Error fetching file ID from API</b>")
-                return
-except Exception as e:
-    await message.reply_text(f"<b>Error: {e}</b>")
-    return
-
-if data.split("-", 1)[0] == "BATCH":
-    sts = await message.reply("<b>ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</b>")
-    # file_id = data.split("-", 1)[1]  # Remove this line as we already have file_id from API
-    msgs = BATCH_FILES.get(file_id)  # Use the file_id from API
-    if not msgs:
-        file = await client.download_media(file_id)  # Use the file_id from API
-        try: 
-            with open(file) as file_data:
-                msgs=json.loads(file_data.read())
-        except:
-            await sts.edit("FAILED")
-            return await client.send_message(LOG_CHANNEL, "UNABLE TO OPEN FILE.")
-        os.remove(file)
-        BATCH_FILES[file_id] = msgs  # Use the file_id from API
-
-    filesarr = []
-    for msg in msgs:
-        title = msg.get("title")
-        size=get_size(int(msg.get("size", 0)))
-        f_caption=msg.get("caption", "")
-        if BATCH_FILE_CAPTION:
-            try:
-                f_caption=BATCH_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
-            except:
-                f_caption=f_caption
-        if f_caption is None:
-            f_caption = f"{title}"
-        try:
-            if STREAM_MODE == True:
-                log_msg = await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=msg.get("file_id"))
-                fileName = {quote_plus(get_name(log_msg))}
-                stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-                download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-
-            if STREAM_MODE == True:
-                button = [[
-                    InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download),
-                    InlineKeyboardButton('• ᴡᴀᴛᴄʜ •', url=stream)
-                ],[
-                    InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
-                ]]
-                reply_markup = InlineKeyboardMarkup(button)
-            else:
-                reply_markup = None
-
-            msg = await client.send_cached_media(
-                chat_id=message.from_user.id,
-                file_id=msg.get("file_id"),
-                caption=f_caption,
-                protect_content=msg.get('protect', False),
-                reply_markup=reply_markup
-            )
-            filesarr.append(msg)
-
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-            msg = await client.send_cached_media(
-                chat_id=message.from_user.id,
-                file_id=msg.get("file_id"),
-                caption=f_caption,
-                protect_content=msg.get('protect', False),
-                reply_markup=InlineKeyboardMarkup(button)
-            )
-            filesarr.append(msg)
-        except:
-            continue
-        await asyncio.sleep(1) 
-    await sts.delete()
-    k = await client.send_message(chat_id = message.from_user.id, text=f"<blockquote><b><u>❗️❗️❗️IMPORTANT❗️️❗️❗️</u></b>\n\nᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ <b><u>10 mins</u> 🫥 <i></b>(ᴅᴜᴇ ᴛᴏ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs)</i>.\n\n<b><i>ᴘʟᴇᴀsᴇ ғᴏʀᴡᴀʀᴅ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ᴏʀ ᴀɴʏ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ.</i></b></blockquote>")
-    await asyncio.sleep(600)
-    for x in filesarr:
-        await x.delete()
-    await k.edit_text("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")  
-    return
-
-elif data.split("-", 1)[0] == "DSTORE":
-    sts = await message.reply("<b>ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</b>")
-    b_string = data.split("-", 1)[1]
-    decoded = (base64.urlsafe_b64decode(b_string + "=" * (-len(b_string) % 4))).decode("ascii")
+    # For file_id extraction from API
     try:
-        f_msg_id, l_msg_id, f_chat_id, protect = decoded.split("_", 3)
+        pre, temp_id = data.split('_', 1)
     except:
-        f_msg_id, l_msg_id, f_chat_id = decoded.split("_", 2)
-        protect = "/pbatch" if PROTECT_CONTENT else "batch"
-    diff = int(l_msg_id) - int(f_msg_id)
-    filesarr = []
-    async for msg in client.iter_messages(int(f_chat_id), int(l_msg_id), int(f_msg_id)):
-        if msg.media:
-            media = getattr(msg, msg.media.value)
-            file_type = msg.media
-            file = getattr(msg, file_type.value)
-            size = get_size(int(file.file_size))
-            file_name = getattr(media, 'file_name', '')
-            f_caption = getattr(msg, 'caption', file_name)
+        temp_id = data
+        pre = ""
+
+    # Fetch actual file_id from API using temp_id - Only for file related commands
+    if pre in ['file', 'filep', 'allfiles', 'allfilesp']:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'https://file-id-wh4s.onrender.com/get?temp_id={temp_id}') as response:
+                    if response.status == 200:
+                        api_data = await response.json()
+                        file_id = api_data.get("file_id")
+                        if not file_id:
+                            await message.reply_text("<b>Invalid file ID received from API</b>")
+                            return
+                    else:
+                        await message.reply_text("<b>Error fetching file ID from API</b>")
+                        return
+        except Exception as e:
+            await message.reply_text(f"<b>Error: {e}</b>")
+            return
+    else:
+        file_id = temp_id
+
+    if data.split("-", 1)[0] == "BATCH":
+        sts = await message.reply("<b>ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</b>")
+        msgs = BATCH_FILES.get(file_id)
+        if not msgs:
+            file = await client.download_media(file_id)
+            try: 
+                with open(file) as file_data:
+                    msgs=json.loads(file_data.read())
+            except:
+                await sts.edit("FAILED")
+                return await client.send_message(LOG_CHANNEL, "UNABLE TO OPEN FILE.")
+            os.remove(file)
+            BATCH_FILES[file_id] = msgs
+
+        filesarr = []
+        for msg in msgs:
+            title = msg.get("title")
+            size=get_size(int(msg.get("size", 0)))
+            f_caption=msg.get("caption", "")
             if BATCH_FILE_CAPTION:
                 try:
-                    f_caption=BATCH_FILE_CAPTION.format(file_name=file_name, file_size='' if size is None else size, file_caption=f_caption)
+                    f_caption=BATCH_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
                 except:
-                    f_caption = getattr(msg, 'caption', '')
-            file_id = file.file_id
-            if STREAM_MODE == True:
-                log_msg = await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=file_id)
-                fileName = {quote_plus(get_name(log_msg))}
-                stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-                download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
+                    f_caption=f_caption
+            if f_caption is None:
+                f_caption = f"{title}"
+            try:
+                if STREAM_MODE == True:
+                    log_msg = await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=msg.get("file_id"))
+                    fileName = {quote_plus(get_name(log_msg))}
+                    stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
+                    download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
 
-            if STREAM_MODE == True:
-                button = [[
-                    InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download),
-                    InlineKeyboardButton('• ᴡᴀᴛᴄʜ •', url=stream)
-                ],[
-                    InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
-                ]]
-                reply_markup = InlineKeyboardMarkup(button)
+                if STREAM_MODE == True:
+                    button = [[
+                        InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download),
+                        InlineKeyboardButton('• ᴡᴀᴛᴄʜ •', url=stream)
+                    ],[
+                        InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
+                    ]]
+                    reply_markup = InlineKeyboardMarkup(button)
+                else:
+                    reply_markup = None
+
+                msg = await client.send_cached_media(
+                    chat_id=message.from_user.id,
+                    file_id=msg.get("file_id"),
+                    caption=f_caption,
+                    protect_content=msg.get('protect', False),
+                    reply_markup=reply_markup
+                )
+                filesarr.append(msg)
+
+            except FloodWait as e:
+                await asyncio.sleep(e.value)
+                msg = await client.send_cached_media(
+                    chat_id=message.from_user.id,
+                    file_id=msg.get("file_id"),
+                    caption=f_caption,
+                    protect_content=msg.get('protect', False),
+                    reply_markup=InlineKeyboardMarkup(button)
+                )
+                filesarr.append(msg)
+            except:
+                continue
+            await asyncio.sleep(1) 
+        await sts.delete()
+        k = await client.send_message(chat_id = message.from_user.id, text=f"<blockquote><b><u>❗️❗️❗️IMPORTANT❗️️❗️❗️</u></b>\n\nᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ <b><u>10 mins</u> 🫥 <i></b>(ᴅᴜᴇ ᴛᴏ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs)</i>.\n\n<b><i>ᴘʟᴇᴀsᴇ ғᴏʀᴡᴀʀᴅ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ᴏʀ ᴀɴʏ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ.</i></b></blockquote>")
+        await asyncio.sleep(600)
+        for x in filesarr:
+            await x.delete()
+        await k.edit_text("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")  
+        return
+
+    elif data.split("-", 1)[0] == "DSTORE":
+        sts = await message.reply("<b>ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</b>")
+        b_string = data.split("-", 1)[1]
+        decoded = (base64.urlsafe_b64decode(b_string + "=" * (-len(b_string) % 4))).decode("ascii")
+        try:
+            f_msg_id, l_msg_id, f_chat_id, protect = decoded.split("_", 3)
+        except:
+            f_msg_id, l_msg_id, f_chat_id = decoded.split("_", 2)
+            protect = "/pbatch" if PROTECT_CONTENT else "batch"
+        diff = int(l_msg_id) - int(f_msg_id)
+        filesarr = []
+        async for msg in client.iter_messages(int(f_chat_id), int(l_msg_id), int(f_msg_id)):
+            if msg.media:
+                media = getattr(msg, msg.media.value)
+                file_type = msg.media
+                file = getattr(msg, file_type.value)
+                size = get_size(int(file.file_size))
+                file_name = getattr(media, 'file_name', '')
+                f_caption = getattr(msg, 'caption', file_name)
+                if BATCH_FILE_CAPTION:
+                    try:
+                        f_caption=BATCH_FILE_CAPTION.format(file_name=file_name, file_size='' if size is None else size, file_caption=f_caption)
+                    except:
+                        f_caption = getattr(msg, 'caption', '')
+                file_id = file.file_id
+                if STREAM_MODE == True:
+                    log_msg = await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=file_id)
+                    fileName = {quote_plus(get_name(log_msg))}
+                    stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
+                    download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
+
+                if STREAM_MODE == True:
+                    button = [[
+                        InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download),
+                        InlineKeyboardButton('• ᴡᴀᴛᴄʜ •', url=stream)
+                    ],[
+                        InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
+                    ]]
+                    reply_markup = InlineKeyboardMarkup(button)
+                else:
+                    reply_markup = None
+                try:
+                    p = await msg.copy(message.chat.id, caption=f_caption, protect_content=True if protect == "/pbatch" else False, reply_markup=reply_markup)
+                except FloodWait as e:
+                    await asyncio.sleep(e.value)
+                    p = await msg.copy(message.chat.id, caption=f_caption, protect_content=True if protect == "/pbatch" else False, reply_markup=reply_markup)
+                except:
+                    continue
+            elif msg.empty:
+                continue
             else:
-                reply_markup = None
-            try:
-                p = await msg.copy(message.chat.id, caption=f_caption, protect_content=True if protect == "/pbatch" else False, reply_markup=reply_markup)
-            except FloodWait as e:
-                await asyncio.sleep(e.value)
-                p = await msg.copy(message.chat.id, caption=f_caption, protect_content=True if protect == "/pbatch" else False, reply_markup=reply_markup)
-            except:
-                continue
-        elif msg.empty:
-            continue
+                try:
+                    p = await msg.copy(message.chat.id, protect_content=True if protect == "/pbatch" else False)
+                except FloodWait as e:
+                    await asyncio.sleep(e.value)
+                    p = await msg.copy(message.chat.id, protect_content=True if protect == "/pbatch" else False)
+                except:
+                    continue
+            filesarr.append(p)
+            await asyncio.sleep(1)
+        await sts.delete()
+        k = await client.send_message(chat_id = message.from_user.id, text=f"<blockquote><b><u>❗️❗️❗️IMPORTANT❗️️❗️❗️</u></b>\n\nᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ <b><u>10 mins</u> 🫥 <i></b>(ᴅᴜᴇ ᴛᴏ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs)</i>.\n\n<b><i>ᴘʟᴇᴀsᴇ ғᴏʀᴡᴀʀᴅ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ᴏʀ ᴀɴʏ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ.</i></b></blockquote>")
+        await asyncio.sleep(600)
+        for x in filesarr:
+            await x.delete()
+        await k.edit_text("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")
+        return
+
+    elif data.split("-", 1)[0] == "verify":
+        userid = data.split("-", 2)[1]
+        token = data.split("-", 3)[2]
+        if str(message.from_user.id) != str(userid):
+            return await message.reply_text(text="<b>ɪɴᴠᴀʟɪᴅ ʟɪɴᴋ ᴏʀ ᴇxᴘɪʀᴇᴅ ʟɪɴᴋ</b>", protect_content=True)
+        is_valid = await check_token(client, userid, token)
+        if is_valid == True:
+            text = "<b>ʜᴇʏ {} 👋,\n\nʏᴏᴜ ʜᴀᴠᴇ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ᴛʜᴇ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ...\n\nɴᴏᴡ ʏᴏᴜ ʜᴀᴠᴇ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ᴛɪʟʟ ᴛᴏᴅᴀʏ ɴᴏᴡ ᴇɴᴊᴏʏ\n\n</b>"
+            if PREMIUM_AND_REFERAL_MODE == True:
+                text += "<b>ɪғ ʏᴏᴜ ᴡᴀɴᴛ ᴅɪʀᴇᴄᴛ ғɪʟᴇꜱ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ᴠᴇʀɪғɪᴄᴀᴛɪᴏɴꜱ ᴛʜᴇɴ ʙᴜʏ ʙᴏᴛ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ☺️\n\n💶 ꜱᴇɴᴅ /plan ᴛᴏ ʙᴜʏ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ</b>"           
+            await message.reply_text(text=text.format(message.from_user.mention), protect_content=True)
+            await verify_user(client, userid, token)
         else:
-            try:
-                p = await msg.copy(message.chat.id, protect_content=True if protect == "/pbatch" else False)
-            except FloodWait as e:
-                await asyncio.sleep(e.value)
-                p = await msg.copy(message.chat.id, protect_content=True if protect == "/pbatch" else False)
-            except:
-                continue
-        filesarr.append(p)
-        await asyncio.sleep(1)
-    await sts.delete()
-    k = await client.send_message(chat_id = message.from_user.id, text=f"<blockquote><b><u>❗️❗️❗️IMPORTANT❗️️❗️❗️</u></b>\n\nᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ <b><u>10 mins</u> 🫥 <i></b>(ᴅᴜᴇ ᴛᴏ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs)</i>.\n\n<b><i>ᴘʟᴇᴀsᴇ ғᴏʀᴡᴀʀᴅ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ᴏʀ ᴀɴʏ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ.</i></b></blockquote>")
-    await asyncio.sleep(600)
-    for x in filesarr:
-        await x.delete()
-    await k.edit_text("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")
-    return
+            return await message.reply_text(text="<b>ɪɴᴠᴀʟɪᴅ ʟɪɴᴋ ᴏʀ ᴇxᴘɪʀᴇᴅ ʟɪɴᴋ</b>", protect_content=True)
+        return
 
-    elif data.split("-", 1)[0] == "verify":  
-    userid = data.split("-", 2)[1]
-    token = data.split("-", 3)[2]
-    if str(message.from_user.id) != str(userid):
-        return await message.reply_text(text="<b>ɪɴᴠᴀʟɪᴅ ʟɪɴᴋ ᴏʀ ᴇxᴘɪʀᴇᴅ ʟɪɴᴋ</b>", protect_content=True)
-    is_valid = await check_token(client, userid, token)
-    if is_valid == True:
-        text = "<b>ʜᴇʏ {} 👋,\n\nʏᴏᴜ ʜᴀᴠᴇ ᴄᴏᴍᴘʟᴇᴛᴇᴄ ᴛʜᴇ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ...\n\nɴᴏᴡ ʏᴏᴜ ʜᴀᴠᴇ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ᴛɪʟʟ ᴛᴏᴅᴀʏ ɴᴏᴡ ᴇɴᴊᴏʏ\n\n</b>"
-        if PREMIUM_AND_REFERAL_MODE == True:
-            text += "<b>ɪғ ʏᴏᴜ ᴡᴀɴᴛ ᴅɪʀᴇᴄᴛ ғɪʟᴇꜱ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ᴠᴇʀɪғɪᴄᴀᴛɪᴏɴꜱ ᴛʜᴇɴ ʙᴜʏ ʙᴏᴛ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ☺️\n\n💶 ꜱᴇɴᴅ /plan ᴛᴏ ʙᴜʏ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ</b>"           
-        await message.reply_text(text=text.format(message.from_user.mention), protect_content=True)
-        await verify_user(client, userid, token)
-    else:
-        return await message.reply_text(text="<b>ɪɴᴠᴀʟɪᴅ ʟɪɴᴋ ᴏʀ ᴇxᴘɪʀᴇᴅ ʟɪɴᴋ</b>", protect_content=True)
-    return
-
-elif data.startswith("sendfiles"):
-    
+    elif data.startswith("sendfiles"):
         chat_id = int("-" + file_id.split("-")[1])
         userid = message.from_user.id if message.from_user else None
         settings = await get_settings(chat_id)
@@ -424,7 +429,6 @@ elif data.startswith("sendfiles"):
         await asyncio.sleep(300)
         await k.edit("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")
         return
-
 
     elif data.startswith("short"):
         user = message.from_user.id
@@ -521,6 +525,7 @@ elif data.startswith("sendfiles"):
             await asyncio.sleep(1200)
             await k.edit("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")
             return
+            
     user = message.from_user.id
     files_ = await get_file_details(file_id)           
     if not files_:
@@ -573,6 +578,7 @@ elif data.startswith("sendfiles"):
         except:
             pass
         return await message.reply('No such file exist.')
+        
     files = files_
     title = files["file_name"]
     size=get_size(files["file_size"])
@@ -617,7 +623,7 @@ elif data.startswith("sendfiles"):
     await asyncio.sleep(600)
     await msg.delete()
     await k.edit_text("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ ɪғ ʏᴏᴜ ᴡᴀɴᴛ ᴀɢᴀɪɴ ᴛʜᴇɴ ᴄʟɪᴄᴋ ᴏɴ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ</b>",reply_markup=InlineKeyboardMarkup(btn))
-    return   
+    return
 
 @Client.on_message(filters.command('channel') & filters.user(ADMINS))
 async def channel_info(bot, message):
