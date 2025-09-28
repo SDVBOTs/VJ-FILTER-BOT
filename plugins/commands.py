@@ -1,4 +1,4 @@
-import os, string, logging, random, asyncio, time, datetime, re, sys, json, base64, aiohttp 
+import os, string, logging, random, asyncio, time, datetime, re, sys, json, base64
 from Script import script
 from pyrogram import Client, filters, enums
 from pyrogram.errors import ChatAdminRequired, FloodWait
@@ -165,9 +165,7 @@ async def start(client, message):
             parse_mode=enums.ParseMode.HTML
         )
         return
-        
     data = message.command[1]
-    
     if data.split("-", 1)[0] == "VJ":
         user_id = int(data.split("-", 1)[1])
         vj = await referal_add_user(user_id, message.from_user.id)
@@ -181,7 +179,7 @@ async def start(client, message):
                 if seconds > 0:
                     expiry_time = datetime.datetime.now() + datetime.timedelta(seconds=seconds)
                     user_data = {"id": user_id, "expiry_time": expiry_time} 
-                    await db.update_user(user_data)
+                    await db.update_user(user_data)  # Use the update_user method to update or insert user data
                     await delete_all_referal_users(user_id)
                     await client.send_message(chat_id = user_id, text = "<b>You Have Successfully Completed Total Referal.\n\nYou Added In Premium For {}</b>".format(REFERAL_PREMEIUM_TIME))
                     return 
@@ -224,37 +222,32 @@ async def start(client, message):
                 reply_markup=reply_markup,
                 parse_mode=enums.ParseMode.HTML
             )
-            return
+            return 
+    import aiohttp  # upar imports me add karo
 
-    # For file_id extraction from API
+...
+
     try:
-        pre, temp_id = data.split('_', 1)
+        pre, file_id = data.split('_', 1)
     except:
-        temp_id = data
+        file_id = data
         pre = ""
 
-    # Fetch actual file_id from API using temp_id - Only for file related commands
-    if pre in ['file', 'filep', 'allfiles', 'allfilesp']:
+    # 🔹 Agar file_id directly valid nahi hai to temp_id API call karo
+    if file_id and len(file_id) < 40:  # temp_id usually chhota hoga, file_id bahut lamba hota hai
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f'https://file-id-wh4s.onrender.com/get?temp_id={temp_id}') as response:
-                    if response.status == 200:
-                        api_data = await response.json()
-                        file_id = api_data.get("file_id")
-                        if not file_id:
-                            await message.reply_text("<b>Invalid file ID received from API</b>")
-                            return
-                    else:
-                        await message.reply_text("<b>Error fetching file ID from API</b>")
-                        return
+                async with session.get(f"https://file-id-wh4s.onrender.com/get?temp_id={file_id}") as resp:
+                    if resp.status == 200:
+                        result = await resp.json()
+                        if "file_id" in result:
+                            file_id = result["file_id"]
         except Exception as e:
-            await message.reply_text(f"<b>Error: {e}</b>")
+            await message.reply_text(f"❌ Invalid or expired link.\n\nError: {e}")
             return
-    else:
-        file_id = temp_id
-
     if data.split("-", 1)[0] == "BATCH":
         sts = await message.reply("<b>ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</b>")
+        file_id = data.split("-", 1)[1]
         msgs = BATCH_FILES.get(file_id)
         if not msgs:
             file = await client.download_media(file_id)
@@ -409,9 +402,8 @@ async def start(client, message):
             await verify_user(client, userid, token)
         else:
             return await message.reply_text(text="<b>ɪɴᴠᴀʟɪᴅ ʟɪɴᴋ ᴏʀ ᴇxᴘɪʀᴇᴅ ʟɪɴᴋ</b>", protect_content=True)
-        return
 
-    elif data.startswith("sendfiles"):
+    if data.startswith("sendfiles"):
         chat_id = int("-" + file_id.split("-")[1])
         userid = message.from_user.id if message.from_user else None
         settings = await get_settings(chat_id)
@@ -429,6 +421,7 @@ async def start(client, message):
         await asyncio.sleep(300)
         await k.edit("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")
         return
+
 
     elif data.startswith("short"):
         user = message.from_user.id
@@ -525,24 +518,10 @@ async def start(client, message):
             await asyncio.sleep(1200)
             await k.edit("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")
             return
-            
     user = message.from_user.id
-files_ = await get_file_details(file_id)           
-if not files_:
-    try:
-        decoded_bytes = base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
-        decoded_str = decoded_bytes.decode("utf-8", "ignore")
-        parts = decoded_str.split("_", 1)
-        if len(parts) == 2:
-            pre, file_id = parts
-        else:
-            # If there's no underscore, assume it's just the file_id
-            file_id = decoded_str
-            pre = ""
-    except Exception as e:
-        logger.error(f"Error decoding data: {e}")
-        await message.reply_text("<b>Invalid link or expired link</b>")
-        return
+    files_ = await get_file_details(file_id)           
+    if not files_:
+        pre, file_id = ((base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))).decode("ascii")).split("_", 1)
         try:
             if not await db.has_premium_access(message.from_user.id):
                 if not await check_verification(client, message.from_user.id) and VERIFY == True:
@@ -591,7 +570,6 @@ if not files_:
         except:
             pass
         return await message.reply('No such file exist.')
-        
     files = files_
     title = files["file_name"]
     size=get_size(files["file_size"])
@@ -636,7 +614,7 @@ if not files_:
     await asyncio.sleep(600)
     await msg.delete()
     await k.edit_text("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ ɪғ ʏᴏᴜ ᴡᴀɴᴛ ᴀɢᴀɪɴ ᴛʜᴇɴ ᴄʟɪᴄᴋ ᴏɴ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ</b>",reply_markup=InlineKeyboardMarkup(btn))
-    return
+    return   
 
 @Client.on_message(filters.command('channel') & filters.user(ADMINS))
 async def channel_info(bot, message):
