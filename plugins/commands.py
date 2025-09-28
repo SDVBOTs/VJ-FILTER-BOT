@@ -527,9 +527,22 @@ async def start(client, message):
             return
             
     user = message.from_user.id
-    files_ = await get_file_details(file_id)           
-    if not files_:
-        pre, file_id = ((base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))).decode("utf-8", "ignore")).split("_", 1)
+files_ = await get_file_details(file_id)           
+if not files_:
+    try:
+        decoded_bytes = base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
+        decoded_str = decoded_bytes.decode("utf-8", "ignore")
+        parts = decoded_str.split("_", 1)
+        if len(parts) == 2:
+            pre, file_id = parts
+        else:
+            # If there's no underscore, assume it's just the file_id
+            file_id = decoded_str
+            pre = ""
+    except Exception as e:
+        logger.error(f"Error decoding data: {e}")
+        await message.reply_text("<b>Invalid link or expired link</b>")
+        return
         try:
             if not await db.has_premium_access(message.from_user.id):
                 if not await check_verification(client, message.from_user.id) and VERIFY == True:
