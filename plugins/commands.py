@@ -1,8 +1,4 @@
-# Don't Remove Credit @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot @Tech_VJ
-# Ask Doubt on telegram @KingVJ01
-
-import os, string, logging, random, asyncio, time, datetime, re, sys, json, base64, secrets
+import os, string, logging, random, asyncio, time, datetime, re, sys, json, base64, aiohttp 
 from Script import script
 from pyrogram import Client, filters, enums
 from pyrogram.errors import ChatAdminRequired, FloodWait
@@ -20,121 +16,12 @@ logger = logging.getLogger(__name__)
 BATCH_FILES = {}
 join_db = JoinReqs
 
-# ✅ SIMPLE TEMPORARY URL SYSTEM (No External API Needed)
-temp_file_mappings = {}
-
-def generate_temp_url(original_file_id: str) -> str:
-    """Generate temporary URL without external API"""
-    temp_id = secrets.token_urlsafe(16)
-    
-    temp_file_mappings[temp_id] = {
-        "original_id": original_file_id,
-        "created_at": datetime.datetime.now(),
-        "used": False
-    }
-    
-    # Cleanup old entries (24 hours+)
-    cleanup_temp_mappings()
-    
-    return f"https://t.me/{temp.U_NAME}?start={temp_id}"
-
-def get_original_file_id(temp_id: str) -> str:
-    """Get original file ID from temporary ID"""
-    if temp_id in temp_file_mappings:
-        if not temp_file_mappings[temp_id]["used"]:
-            temp_file_mappings[temp_id]["used"] = True
-            return temp_file_mappings[temp_id]["original_id"]
-    return None
-
-def cleanup_temp_mappings():
-    """Remove mappings older than 24 hours"""
-    current_time = datetime.datetime.now()
-    expired_keys = []
-    
-    for temp_id, mapping in temp_file_mappings.items():
-        if current_time - mapping["created_at"] > datetime.timedelta(hours=24):
-            expired_keys.append(temp_id)
-    
-    for key in expired_keys:
-        del temp_file_mappings[key]
-
-# ✅ NEW: Direct Temp URL Generator Command
-@Client.on_message(filters.command("tempurl") & filters.private)
-async def generate_temp_url_command(client, message):
-    if len(message.command) < 2:
-        await message.reply_text("❌ Usage: /tempurl <file_id>")
-        return
-    
-    file_id = message.command[1]
-    temp_url = generate_temp_url(file_id)
-    
-    await message.reply_text(
-        f"🔗 **Temporary URL Generated:**\n\n"
-        f"**Original File ID:** `{file_id}`\n"
-        f"**Temporary URL:** {temp_url}\n\n"
-        f"⚠️ This link can only be used once and will expire in 24 hours.",
-        disable_web_page_preview=True
-    )
-
 @Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
     try:
         await message.react(emoji=random.choice(REACTIONS), big=True)
     except:
         pass
-    
-    # ✅ Handle temporary file IDs
-    if len(message.command) == 2:
-        start_param = message.command[1]
-        
-        # Check if it's a temporary ID (16+ characters)
-        if len(start_param) >= 16 and '_' not in start_param and '-' not in start_param:
-            original_id = get_original_file_id(start_param)
-            if original_id:
-                try:
-                    files_ = await get_file_details(original_id)
-                    if files_:
-                        title = files_["file_name"]
-                        size = get_size(files_["file_size"])
-                        f_caption = files_["caption"]
-                        
-                        if CUSTOM_FILE_CAPTION:
-                            try:
-                                f_caption = CUSTOM_FILE_CAPTION.format(
-                                    file_name='' if title is None else title,
-                                    file_size='' if size is None else size,
-                                    file_caption='' if f_caption is None else f_caption
-                                )
-                            except:
-                                f_caption = f_caption
-                        
-                        if f_caption is None:
-                            f_caption = f"{' '.join(filter(lambda x: not x.startswith('[') and not x.startswith('@'), files_['file_name'].split()))}"
-                        
-                        msg = await client.send_cached_media(
-                            chat_id=message.from_user.id,
-                            file_id=original_id,
-                            caption=f_caption,
-                            protect_content=True
-                        )
-                        
-                        await message.reply_text(
-                            "✅ File sent successfully! This temporary link can only be used once.",
-                            reply_to_message_id=msg.id
-                        )
-                        return
-                    else:
-                        await message.reply_text("❌ File not found in database.")
-                        return
-                except Exception as e:
-                    logger.error(f"Error sending file from temp ID: {e}")
-                    await message.reply_text("❌ This link has expired or is invalid.")
-                    return
-            else:
-                await message.reply_text("❌ Invalid or expired temporary link.")
-                return
-
-       
     if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         buttons = [[
             InlineKeyboardButton('⤬ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ⤬', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
@@ -337,17 +224,34 @@ async def start(client, message):
             )
             return 
     try:
-        pre, file_id = data.split('_', 1)
-    except:
-        file_id = data
-        pre = ""
+    pre, temp_id = data.split('_', 1)
+except:
+    temp_id = data
+    pre = ""
 
-    if data.split("-", 1)[0] == "BATCH":
+# Fetch actual file_id from API using temp_id
+try:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f'https://file-id-wh4s.onrender.com/get?temp_id={temp_id}') as response:
+            if response.status == 200:
+                api_data = await response.json()
+                file_id = api_data.get("file_id")
+                if not file_id:
+                    await message.reply_text("<b>Invalid file ID received from API</b>")
+                    return
+            else:
+                await message.reply_text("<b>Error fetching file ID from API</b>")
+                return
+except Exception as e:
+    await message.reply_text(f"<b>Error: {e}</b>")
+    return
+
+if data.split("-", 1)[0] == "BATCH":
     sts = await message.reply("<b>ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</b>")
-    file_id = data.split("-", 1)[1]
-    msgs = BATCH_FILES.get(file_id)
+    # file_id = data.split("-", 1)[1]  # Remove this line as we already have file_id from API
+    msgs = BATCH_FILES.get(file_id)  # Use the file_id from API
     if not msgs:
-        file = await client.download_media(file_id)
+        file = await client.download_media(file_id)  # Use the file_id from API
         try: 
             with open(file) as file_data:
                 msgs=json.loads(file_data.read())
@@ -355,36 +259,23 @@ async def start(client, message):
             await sts.edit("FAILED")
             return await client.send_message(LOG_CHANNEL, "UNABLE TO OPEN FILE.")
         os.remove(file)
-        BATCH_FILES[file_id] = msgs
+        BATCH_FILES[file_id] = msgs  # Use the file_id from API
 
     filesarr = []
     for msg in msgs:
         title = msg.get("title")
         size=get_size(int(msg.get("size", 0)))
         f_caption=msg.get("caption", "")
-        
-        # ✅ Generate temporary URL for each file
-        original_file_id = msg.get("file_id")
-        temp_file_url = generate_temp_url(original_file_id)
-        
         if BATCH_FILE_CAPTION:
             try:
-                f_caption=BATCH_FILE_CAPTION.format(
-                    file_name='' if title is None else title, 
-                    file_size='' if size is None else size, 
-                    file_caption='' if f_caption is None else f_caption
-                ) + f"\n\n🔗 Temporary Link: {temp_file_url}"
+                f_caption=BATCH_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
             except:
-                f_caption=f_caption + f"\n\n🔗 Temporary Link: {temp_file_url}"
-        else:
-            f_caption = f_caption + f"\n\n🔗 Temporary Link: {temp_file_url}" if f_caption else f"🔗 Temporary Link: {temp_file_url}"
-        
+                f_caption=f_caption
         if f_caption is None:
-            f_caption = f"{title}\n\n🔗 Temporary Link: {temp_file_url}"
-        
+            f_caption = f"{title}"
         try:
             if STREAM_MODE == True:
-                log_msg = await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=original_file_id)
+                log_msg = await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=msg.get("file_id"))
                 fileName = {quote_plus(get_name(log_msg))}
                 stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
                 download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
@@ -394,17 +285,15 @@ async def start(client, message):
                     InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download),
                     InlineKeyboardButton('• ᴡᴀᴛᴄʜ •', url=stream)
                 ],[
-                    InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream)),
-                    InlineKeyboardButton("• 🔗 Temporary Link •", url=temp_file_url)
+                    InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
                 ]]
                 reply_markup = InlineKeyboardMarkup(button)
             else:
-                button = [[InlineKeyboardButton("• 🔗 Temporary Link •", url=temp_file_url)]]
-                reply_markup = InlineKeyboardMarkup(button)
+                reply_markup = None
 
             msg = await client.send_cached_media(
                 chat_id=message.from_user.id,
-                file_id=original_file_id,
+                file_id=msg.get("file_id"),
                 caption=f_caption,
                 protect_content=msg.get('protect', False),
                 reply_markup=reply_markup
@@ -415,14 +304,13 @@ async def start(client, message):
             await asyncio.sleep(e.value)
             msg = await client.send_cached_media(
                 chat_id=message.from_user.id,
-                file_id=original_file_id,
+                file_id=msg.get("file_id"),
                 caption=f_caption,
                 protect_content=msg.get('protect', False),
-                reply_markup=reply_markup
+                reply_markup=InlineKeyboardMarkup(button)
             )
             filesarr.append(msg)
-        except Exception as e:
-            logger.error(f"Error in BATCH: {e}")
+        except:
             continue
         await asyncio.sleep(1) 
     await sts.delete()
@@ -433,156 +321,73 @@ async def start(client, message):
     await k.edit_text("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")  
     return
 
-    elif data.split("-", 1)[0] == "DSTORE":
-        sts = await message.reply("<b>ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</b>")
-        b_string = data.split("-", 1)[1]
-        decoded = (base64.urlsafe_b64decode(b_string + "=" * (-len(b_string) % 4))).decode("ascii")
-        try:
-            f_msg_id, l_msg_id, f_chat_id, protect = decoded.split("_", 3)
-        except:
-            f_msg_id, l_msg_id, f_chat_id = decoded.split("_", 2)
-            protect = "/pbatch" if PROTECT_CONTENT else "batch"
-        diff = int(l_msg_id) - int(f_msg_id)
-        filesarr = []
-        async for msg in client.iter_messages(int(f_chat_id), int(l_msg_id), int(f_msg_id)):
-            if msg.media:
-                media = getattr(msg, msg.media.value)
-                file_type = msg.media
-                file = getattr(msg, file_type.value)
-                size = get_size(int(file.file_size))
-                file_name = getattr(media, 'file_name', '')
-                f_caption = getattr(msg, 'caption', file_name)
-                
-                # Generate temporary URL
-                file_id = file.file_id
-                temp_file_url = await generate_temp_url(file_id)
-                
-                if BATCH_FILE_CAPTION:
-                    try:
-                        f_caption=BATCH_FILE_CAPTION.format(
-                            file_name=file_name, 
-                            file_size='' if size is None else size, 
-                            file_caption=f_caption
-                        ) + f"\n\n🔗 Temporary Link: {temp_file_url}"
-                    except:
-                        f_caption = getattr(msg, 'caption', '') + f"\n\n🔗 Temporary Link: {temp_file_url}"
-                else:
-                    f_caption = f_caption + f"\n\n🔗 Temporary Link: {temp_file_url}" if f_caption else f"🔗 Temporary Link: {temp_file_url}"
-                
-                if STREAM_MODE == True:
-                    log_msg = await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=file_id)
-                    fileName = {quote_plus(get_name(log_msg))}
-                    stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-                    download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-
-                if STREAM_MODE == True:
-                    button = [[
-                        InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download),
-                        InlineKeyboardButton('• ᴡᴀᴛᴄʜ •', url=stream)
-                    ],[
-                        InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream)),
-                        InlineKeyboardButton("• 🔗 Temporary Link •", url=temp_file_url)
-                    ]]
-                    reply_markup = InlineKeyboardMarkup(button)
-                else:
-                    button = [[InlineKeyboardButton("• 🔗 Temporary Link •", url=temp_file_url)]]
-                    reply_markup = InlineKeyboardMarkup(button)
-                    
+elif data.split("-", 1)[0] == "DSTORE":
+    sts = await message.reply("<b>ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</b>")
+    b_string = data.split("-", 1)[1]
+    decoded = (base64.urlsafe_b64decode(b_string + "=" * (-len(b_string) % 4))).decode("ascii")
+    try:
+        f_msg_id, l_msg_id, f_chat_id, protect = decoded.split("_", 3)
+    except:
+        f_msg_id, l_msg_id, f_chat_id = decoded.split("_", 2)
+        protect = "/pbatch" if PROTECT_CONTENT else "batch"
+    diff = int(l_msg_id) - int(f_msg_id)
+    filesarr = []
+    async for msg in client.iter_messages(int(f_chat_id), int(l_msg_id), int(f_msg_id)):
+        if msg.media:
+            media = getattr(msg, msg.media.value)
+            file_type = msg.media
+            file = getattr(msg, file_type.value)
+            size = get_size(int(file.file_size))
+            file_name = getattr(media, 'file_name', '')
+            f_caption = getattr(msg, 'caption', file_name)
+            if BATCH_FILE_CAPTION:
                 try:
-                    p = await msg.copy(message.chat.id, caption=f_caption, protect_content=True if protect == "/pbatch" else False, reply_markup=reply_markup)
-                except FloodWait as e:
-                    await asyncio.sleep(e.value)
-                    p = await msg.copy(message.chat.id, caption=f_caption, protect_content=True if protect == "/pbatch" else False, reply_markup=reply_markup)
-                except Exception as e:
-                    logger.error(f"Error in DSTORE: {e}")
-                    continue
-            elif msg.empty:
-                continue
+                    f_caption=BATCH_FILE_CAPTION.format(file_name=file_name, file_size='' if size is None else size, file_caption=f_caption)
+                except:
+                    f_caption = getattr(msg, 'caption', '')
+            file_id = file.file_id
+            if STREAM_MODE == True:
+                log_msg = await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=file_id)
+                fileName = {quote_plus(get_name(log_msg))}
+                stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
+                download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
+
+            if STREAM_MODE == True:
+                button = [[
+                    InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download),
+                    InlineKeyboardButton('• ᴡᴀᴛᴄʜ •', url=stream)
+                ],[
+                    InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
+                ]]
+                reply_markup = InlineKeyboardMarkup(button)
             else:
-                try:
-                    p = await msg.copy(message.chat.id, protect_content=True if protect == "/pbatch" else False)
-                except FloodWait as e:
-                    await asyncio.sleep(e.value)
-                    p = await msg.copy(message.chat.id, protect_content=True if protect == "/pbatch" else False)
-                except:
-                    continue
-            filesarr.append(p)
-            await asyncio.sleep(1)
-        await sts.delete()
-        k = await client.send_message(chat_id = message.from_user.id, text=f"<blockquote><b><u>❗️❗️❗️IMPORTANT❗️️❗️❗️</u></b>\n\nᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ <b><u>10 mins</u> 🫥 <i></b>(ᴅᴜᴇ ᴛᴏ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs)</i>.\n\n<b><i>ᴘʟᴇᴀsᴇ ғᴏʀᴡᴀʀᴅ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ᴏʀ ᴀɴʏ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ.</i></b></blockquote>")
-        await asyncio.sleep(600)
-        for x in filesarr:
-            await x.delete()
-        await k.edit_text("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")
-        return
-
-    elif data.split("-", 1)[0] == "DSTORE":
-        sts = await message.reply("<b>ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...</b>")
-        b_string = data.split("-", 1)[1]
-        decoded = (base64.urlsafe_b64decode(b_string + "=" * (-len(b_string) % 4))).decode("ascii")
-        try:
-            f_msg_id, l_msg_id, f_chat_id, protect = decoded.split("_", 3)
-        except:
-            f_msg_id, l_msg_id, f_chat_id = decoded.split("_", 2)
-            protect = "/pbatch" if PROTECT_CONTENT else "batch"
-        diff = int(l_msg_id) - int(f_msg_id)
-        filesarr = []
-        async for msg in client.iter_messages(int(f_chat_id), int(l_msg_id), int(f_msg_id)):
-            if msg.media:
-                media = getattr(msg, msg.media.value)
-                file_type = msg.media
-                file = getattr(msg, file_type.value)
-                size = get_size(int(file.file_size))
-                file_name = getattr(media, 'file_name', '')
-                f_caption = getattr(msg, 'caption', file_name)
-                if BATCH_FILE_CAPTION:
-                    try:
-                        f_caption=BATCH_FILE_CAPTION.format(file_name=file_name, file_size='' if size is None else size, file_caption=f_caption)
-                    except:
-                        f_caption = getattr(msg, 'caption', '')
-                file_id = file.file_id
-                if STREAM_MODE == True:
-                    log_msg = await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=file_id)
-                    fileName = {quote_plus(get_name(log_msg))}
-                    stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-                    download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-
-                if STREAM_MODE == True:
-                    button = [[
-                        InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download),
-                        InlineKeyboardButton('• ᴡᴀᴛᴄʜ •', url=stream)
-                    ],[
-                        InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
-                    ]]
-                    reply_markup = InlineKeyboardMarkup(button)
-                else:
-                    reply_markup = None
-                try:
-                    p = await msg.copy(message.chat.id, caption=f_caption, protect_content=True if protect == "/pbatch" else False, reply_markup=reply_markup)
-                except FloodWait as e:
-                    await asyncio.sleep(e.value)
-                    p = await msg.copy(message.chat.id, caption=f_caption, protect_content=True if protect == "/pbatch" else False, reply_markup=reply_markup)
-                except:
-                    continue
-            elif msg.empty:
+                reply_markup = None
+            try:
+                p = await msg.copy(message.chat.id, caption=f_caption, protect_content=True if protect == "/pbatch" else False, reply_markup=reply_markup)
+            except FloodWait as e:
+                await asyncio.sleep(e.value)
+                p = await msg.copy(message.chat.id, caption=f_caption, protect_content=True if protect == "/pbatch" else False, reply_markup=reply_markup)
+            except:
                 continue
-            else:
-                try:
-                    p = await msg.copy(message.chat.id, protect_content=True if protect == "/pbatch" else False)
-                except FloodWait as e:
-                    await asyncio.sleep(e.value)
-                    p = await msg.copy(message.chat.id, protect_content=True if protect == "/pbatch" else False)
-                except:
-                    continue
-            filesarr.append(p)
-            await asyncio.sleep(1)
-        await sts.delete()
-        k = await client.send_message(chat_id = message.from_user.id, text=f"<blockquote><b><u>❗️❗️❗️IMPORTANT❗️️❗️❗️</u></b>\n\nᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ <b><u>10 mins</u> 🫥 <i></b>(ᴅᴜᴇ ᴛᴏ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs)</i>.\n\n<b><i>ᴘʟᴇᴀsᴇ ғᴏʀᴡᴀʀᴅ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ᴏʀ ᴀɴʏ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ.</i></b></blockquote>")
-        await asyncio.sleep(600)
-        for x in filesarr:
-            await x.delete()
-        await k.edit_text("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")
-        return
+        elif msg.empty:
+            continue
+        else:
+            try:
+                p = await msg.copy(message.chat.id, protect_content=True if protect == "/pbatch" else False)
+            except FloodWait as e:
+                await asyncio.sleep(e.value)
+                p = await msg.copy(message.chat.id, protect_content=True if protect == "/pbatch" else False)
+            except:
+                continue
+        filesarr.append(p)
+        await asyncio.sleep(1)
+    await sts.delete()
+    k = await client.send_message(chat_id = message.from_user.id, text=f"<blockquote><b><u>❗️❗️❗️IMPORTANT❗️️❗️❗️</u></b>\n\nᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ <b><u>10 mins</u> 🫥 <i></b>(ᴅᴜᴇ ᴛᴏ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs)</i>.\n\n<b><i>ᴘʟᴇᴀsᴇ ғᴏʀᴡᴀʀᴅ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ᴏʀ ᴀɴʏ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ.</i></b></blockquote>")
+    await asyncio.sleep(600)
+    for x in filesarr:
+        await x.delete()
+    await k.edit_text("<b>✅ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ</b>")
+    return
 
     elif data.split("-", 1)[0] == "verify":
         userid = data.split("-", 2)[1]
