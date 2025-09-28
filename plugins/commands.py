@@ -223,7 +223,7 @@ async def start(client, message):
                 parse_mode=enums.ParseMode.HTML
             )
             return 
-    try:
+try:
     pre, temp_id = data.split('_', 1)
 except:
     temp_id = data
